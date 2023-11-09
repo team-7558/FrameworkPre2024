@@ -32,19 +32,17 @@ public class RobotTeleop extends CommandBase {
   public void execute() {
     if (!drive.isState(drive.DISABLED)) {
 
-      
       if (OI.DR.getBButton()) drive.setPose(new Pose2d());
-      
+
       if (OI.DR.getXButton()) drive.setCurrentState(drive.X);
-      else if (OI.DR.getAButton()){
+      else if (OI.DR.getAButton()) {
         drive.setAutolockHeading(0.5 * Math.PI);
         drive.setCurrentState(drive.STRAFE_AUTOLOCK);
-        
-      } else if (OI.DR.getYButton()){
+
+      } else if (OI.DR.getYButton()) {
         drive.setAutolockHeading(Math.PI);
         drive.setCurrentState(drive.STRAFE_AUTOLOCK);
       } else drive.setCurrentState(drive.STRAFE_N_TURN);
-      
     }
   }
 

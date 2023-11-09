@@ -37,7 +37,6 @@ import frc.robot.OI;
 import frc.robot.subsystems.StateMachineSubsystemBase;
 import frc.robot.util.LocalADStarAK;
 import frc.robot.util.Util;
-
 import org.littletonrobotics.junction.Logger;
 
 public class Drive extends StateMachineSubsystemBase {
@@ -173,9 +172,11 @@ public class Drive extends StateMachineSubsystemBase {
         new State("STRAFE AUTOLOCK") {
           @Override
           public void periodic() {
-            double err = Math.IEEEremainder(pose.getRotation().getRadians() - autolockSetpoint_rad, Math.PI * 2.0);
+            double err =
+                Math.IEEEremainder(
+                    pose.getRotation().getRadians() - autolockSetpoint_rad, Math.PI * 2.0);
             Logger.recordOutput("Drive/Autolock Heading Error", err);
-            double con = Util.inRange(err, 0.35)? 2 * err: 0.8 * err;
+            double con = Util.inRange(err, 0.35) ? 2 * err : 0.8 * err;
             Logger.recordOutput("Drive/Autolock Heading Output", con);
             drive(-OI.DR.getLeftY(), -OI.DR.getLeftX(), -con, 1.0);
           }
@@ -348,7 +349,7 @@ public class Drive extends StateMachineSubsystemBase {
     this.pose = pose;
   }
 
-  public void setAutolockHeading(double heading){
+  public void setAutolockHeading(double heading) {
     autolockSetpoint_rad = heading;
   }
 

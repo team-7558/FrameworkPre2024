@@ -167,14 +167,12 @@ public abstract class StateMachineSubsystemBase extends SubsystemBase {
 
   @Override
   public final void periodic() {
-    long time = Logger.getInstance().getRealTimestamp();
+    long time = Logger.getRealTimestamp();
     inputPeriodic();
     currentState.basePeriodic();
     outputPeriodic();
-    Logger.getInstance()
-        .recordOutput(
-            this.getName() + "/PerfDelta", Logger.getInstance().getRealTimestamp() - time);
-    Logger.getInstance().recordOutput(this.getName() + "/State", currentState.name);
+    Logger.recordOutput(this.getName() + "/PerfDelta", Logger.getRealTimestamp() - time);
+    Logger.recordOutput(this.getName() + "/State", currentState.name);
   }
 
   public final void controlsPeriodic() {}
