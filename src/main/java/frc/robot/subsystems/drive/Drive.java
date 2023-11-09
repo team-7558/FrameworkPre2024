@@ -36,6 +36,8 @@ import frc.robot.Constants;
 import frc.robot.OI;
 import frc.robot.subsystems.StateMachineSubsystemBase;
 import frc.robot.util.LocalADStarAK;
+import frc.robot.util.Util;
+
 import org.littletonrobotics.junction.Logger;
 
 public class Drive extends StateMachineSubsystemBase {
@@ -89,7 +91,7 @@ public class Drive extends StateMachineSubsystemBase {
     return instance;
   }
 
-  public final State DISABLED, X, DRIVING;
+  public final State DISABLED, X, STRAFE_N_TURN, STRAFE_AUTOLOCK;
 
   private final GyroIO gyroIO;
   private final GyroIOInputsAutoLogged gyroInputs = new GyroIOInputsAutoLogged();
@@ -98,6 +100,7 @@ public class Drive extends StateMachineSubsystemBase {
   private SwerveDriveKinematics kinematics = new SwerveDriveKinematics(getModuleTranslations());
   private Pose2d pose = new Pose2d();
   private Rotation2d lastGyroRotation = new Rotation2d();
+  private double autolockSetpoint_rad = 0.0;
 
   private Field2d field = new Field2d();
 
@@ -135,7 +138,8 @@ public class Drive extends StateMachineSubsystemBase {
           Logger.recordOutput("Drive/Odometry/TrajectorySetpoint", targetPose);
         });
 
-    DISABLED = new State("DISABLED") {
+    DISABLED =
+        new State("DISABLED") {
 
           @Override
           public void init() {
@@ -149,17 +153,31 @@ public class Drive extends StateMachineSubsystemBase {
           public void exit() {}
         };
 
-    X = new State("X") {
+    X =
+        new State("X") {
           @Override
           public void periodic() {
             stopWithX();
           }
         };
 
-    DRIVING = new State("DRIVING") {
+    STRAFE_N_TURN =
+        new State("STRAFE N TURN") {
           @Override
           public void periodic() {
             drive(-OI.DR.getLeftY(), -OI.DR.getLeftX(), -OI.DR.getRightX(), 1.0);
+          }
+        };
+
+    STRAFE_AUTOLOCK =
+        new State("STRAFE AUTOLOCK") {
+          @Override
+          public void periodic() {
+            double err = Math.IEEEremainder(pose.getRotation().getRadians() - autolockSetpoint_rad, Math.PI * 2.0);
+            Logger.recordOutput("Drive/Autolock Heading Error", err);
+            double con = Util.inRange(err, 0.35)? -2 * err: -0.8 * err;
+            Logger.recordOutput("Drive/Autolock Heading Output", con);
+            drive(-OI.DR.getLeftY(), -OI.DR.getLeftX(), con, 1.0);
           }
         };
 
@@ -328,6 +346,10 @@ public class Drive extends StateMachineSubsystemBase {
   /** Resets the current odometry pose. */
   public void setPose(Pose2d pose) {
     this.pose = pose;
+  }
+
+  public void setAutolockHeading(double heading){
+    autolockSetpoint_rad = heading;
   }
 
   /** Returns the maximum linear speed in meters per sec. */

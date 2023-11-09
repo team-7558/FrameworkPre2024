@@ -24,7 +24,7 @@ public class RobotTeleop extends CommandBase {
   // Called when the command is initially scheduled.
   @Override
   public void initialize() {
-    drive.setCurrentState(drive.DRIVING);
+    drive.setCurrentState(drive.STRAFE_N_TURN);
   }
 
   // Called every time the scheduler runs while the command is scheduled.
@@ -32,10 +32,19 @@ public class RobotTeleop extends CommandBase {
   public void execute() {
     if (!drive.isState(drive.DISABLED)) {
 
-      if (OI.DR.getXButton()) drive.setCurrentState(drive.X);
-      else drive.setCurrentState(drive.DRIVING);
-
+      
       if (OI.DR.getBButton()) drive.setPose(new Pose2d());
+      
+      if (OI.DR.getXButton()) drive.setCurrentState(drive.X);
+      else if (OI.DR.getAButton()){
+        drive.setAutolockHeading(0.5 * Math.PI);
+        drive.setCurrentState(drive.STRAFE_AUTOLOCK);
+        
+      } else if (OI.DR.getYButton()){
+        drive.setAutolockHeading(Math.PI);
+        drive.setCurrentState(drive.STRAFE_AUTOLOCK);
+      } else drive.setCurrentState(drive.STRAFE_N_TURN);
+      
     }
   }
 
