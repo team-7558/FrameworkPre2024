@@ -128,11 +128,11 @@ public class Drive extends StateMachineSubsystemBase {
     PathPlannerLogging.setLogActivePathCallback(
         (activePath) -> {
           Logger.recordOutput(
-              "Odometry/Trajectory", activePath.toArray(new Pose2d[activePath.size()]));
+              "Drive/Odometry/Trajectory", activePath.toArray(new Pose2d[activePath.size()]));
         });
     PathPlannerLogging.setLogTargetPoseCallback(
         (targetPose) -> {
-          Logger.recordOutput("Odometry/TrajectorySetpoint", targetPose);
+          Logger.recordOutput("Drive/Odometry/TrajectorySetpoint", targetPose);
         });
 
     DISABLED = new State("DISABLED") {
@@ -191,12 +191,12 @@ public class Drive extends StateMachineSubsystemBase {
     }
 
     // Log measured states
-    Logger.recordOutput("SwerveStates/Measured", getModuleStates());
+    Logger.recordOutput("Drive/SwerveStates/Measured", getModuleStates());
 
     // Log empty setpoint states when disabled
     if (DriverStation.isDisabled()) {
-      Logger.recordOutput("SwerveStates/Setpoints", new SwerveModuleState[] {});
-      Logger.recordOutput("SwerveStates/SetpointsOptimized", new SwerveModuleState[] {});
+      Logger.recordOutput("Drive/SwerveStates/Setpoints", new SwerveModuleState[] {});
+      Logger.recordOutput("Drive/SwerveStates/SetpointsOptimized", new SwerveModuleState[] {});
     }
 
     // Update odometry
@@ -218,7 +218,7 @@ public class Drive extends StateMachineSubsystemBase {
     }
     // Apply the twist (change since last loop cycle) to the current pose
     pose = pose.exp(twist);
-    Logger.recordOutput("Odometry/Robot", getPose());
+    Logger.recordOutput("Drive/Odometry/Robot", getPose());
     field.setRobotPose(pose);
     SmartDashboard.putData(field);
   }
@@ -268,8 +268,8 @@ public class Drive extends StateMachineSubsystemBase {
     }
 
     // Log setpoint states
-    Logger.recordOutput("SwerveStates/Setpoints", setpointStates);
-    Logger.recordOutput("SwerveStates/SetpointsOptimized", optimizedSetpointStates);
+    Logger.recordOutput("Drive/SwerveStates/Setpoints", setpointStates);
+    Logger.recordOutput("Drive/SwerveStates/SetpointsOptimized", optimizedSetpointStates);
   }
 
   /** Stops the drive. */
