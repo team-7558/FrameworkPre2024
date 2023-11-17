@@ -11,21 +11,50 @@
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 
-package frc.robot.subsystems.flywheel;
+package frc.robot.subsystems.shooter;
 
 import edu.wpi.first.math.controller.SimpleMotorFeedforward;
 import edu.wpi.first.math.util.Units;
-import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.Constants;
+import frc.robot.subsystems.StateMachineSubsystemBase;
 import org.littletonrobotics.junction.Logger;
 
-public class Flywheel extends SubsystemBase {
-  private final FlywheelIO io;
-  private final FlywheelIOInputsAutoLogged inputs = new FlywheelIOInputsAutoLogged();
+public class Shooter extends StateMachineSubsystemBase {
+
+  private static Shooter instance;
+
+  public static Shooter getInstance() {
+    if (instance == null) {
+      switch (Constants.currentMode) {
+        case REAL:
+          // Real robot, instantiate hardware IO implementations
+          instance = new Shooter(new ShooterIOSparkMax());
+          break;
+
+        case SIM:
+          // Sim robot, instantiate physics sim IO implementations
+          instance = new Shooter(new ShooterIOSim());
+          break;
+
+        default:
+          // Replayed robot, disable IO implementations
+          instance = new Shooter(new ShooterIO() {});
+          break;
+      }
+    }
+
+    return instance;
+  }
+
+  public final State DISABLED, IDLE;
+
+  private final ShooterIO io;
+  private final ShooterIOInputsAutoLogged inputs = new ShooterIOInputsAutoLogged();
   private final SimpleMotorFeedforward ffModel;
 
   /** Creates a new Flywheel. */
-  public Flywheel(FlywheelIO io) {
+  private Shooter(ShooterIO io) {
+    super("Shooter");
     this.io = io;
 
     // Switch constants based on mode (the physics simulator is treated as a
@@ -44,12 +73,48 @@ public class Flywheel extends SubsystemBase {
         ffModel = new SimpleMotorFeedforward(0.0, 0.0);
         break;
     }
+
+    DISABLED =
+        new State("DISABLED") {
+
+          @Override
+          public void init() {
+            stop();
+          }
+
+          @Override
+          public void periodic() {}
+
+          @Override
+          public void exit() {}
+        };
+
+    IDLE =
+        new State("IDLE") {
+
+          @Override
+          public void init() {
+            stop();
+          }
+
+          @Override
+          public void periodic() {}
+
+          @Override
+          public void exit() {}
+        };
+
+    setCurrentState(DISABLED);
   }
 
   @Override
-  public void periodic() {
+  public void inputPeriodic() {
     io.updateInputs(inputs);
     Logger.processInputs("Flywheel", inputs);
+  }
+
+  @Override
+  public void outputPeriodic() {
 
     // Log flywheel speed in RPM
     Logger.recordOutput("FlywheelSpeedRPM", getVelocityRPM());

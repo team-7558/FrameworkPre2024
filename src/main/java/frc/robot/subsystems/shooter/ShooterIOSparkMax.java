@@ -11,7 +11,7 @@
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 
-package frc.robot.subsystems.flywheel;
+package frc.robot.subsystems.shooter;
 
 import com.revrobotics.CANSparkMax;
 import com.revrobotics.CANSparkMax.ControlType;
@@ -21,7 +21,7 @@ import com.revrobotics.SparkMaxPIDController;
 import com.revrobotics.SparkMaxPIDController.ArbFFUnits;
 import edu.wpi.first.math.util.Units;
 
-public class FlywheelIOSparkMax implements FlywheelIO {
+public class ShooterIOSparkMax implements ShooterIO {
   private static final double GEAR_RATIO = 1.5;
 
   private final CANSparkMax leader = new CANSparkMax(0, MotorType.kBrushless);
@@ -29,7 +29,7 @@ public class FlywheelIOSparkMax implements FlywheelIO {
   private final RelativeEncoder encoder = leader.getEncoder();
   private final SparkMaxPIDController pid = leader.getPIDController();
 
-  public FlywheelIOSparkMax() {
+  public ShooterIOSparkMax() {
     leader.restoreFactoryDefaults();
     follower.restoreFactoryDefaults();
 
@@ -47,7 +47,7 @@ public class FlywheelIOSparkMax implements FlywheelIO {
   }
 
   @Override
-  public void updateInputs(FlywheelIOInputs inputs) {
+  public void updateInputs(ShooterIOInputs inputs) {
     inputs.positionRad = Units.rotationsToRadians(encoder.getPosition() / GEAR_RATIO);
     inputs.velocityRadPerSec =
         Units.rotationsPerMinuteToRadiansPerSecond(encoder.getVelocity() / GEAR_RATIO);
