@@ -18,10 +18,16 @@ import com.pathplanner.lib.pathfinding.Pathfinding;
 import com.pathplanner.lib.util.HolonomicPathFollowerConfig;
 import com.pathplanner.lib.util.PathPlannerLogging;
 import com.pathplanner.lib.util.ReplanningConfig;
+import edu.wpi.first.apriltag.AprilTagFieldLayout;
+import edu.wpi.first.apriltag.AprilTagFields;
 import edu.wpi.first.math.MathUtil;
+import edu.wpi.first.math.Matrix;
+import edu.wpi.first.math.VecBuilder;
 import edu.wpi.first.math.estimator.SwerveDrivePoseEstimator;
 import edu.wpi.first.math.geometry.Pose2d;
+import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.geometry.Rotation3d;
 import edu.wpi.first.math.geometry.Transform2d;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.geometry.Twist2d;
@@ -29,7 +35,11 @@ import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.kinematics.SwerveDriveKinematics;
 import edu.wpi.first.math.kinematics.SwerveModulePosition;
 import edu.wpi.first.math.kinematics.SwerveModuleState;
+import edu.wpi.first.math.numbers.N1;
+import edu.wpi.first.math.numbers.N3;
 import edu.wpi.first.math.util.Units;
+import edu.wpi.first.networktables.NetworkTable;
+import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.Field2d;
@@ -38,6 +48,7 @@ import frc.robot.Constants;
 import frc.robot.OI;
 import frc.robot.subsystems.StateMachineSubsystemBase;
 import frc.robot.util.LocalADStarAK;
+import java.io.IOException;
 import org.littletonrobotics.junction.Logger;
 
 public class Drive extends StateMachineSubsystemBase {
@@ -45,6 +56,7 @@ public class Drive extends StateMachineSubsystemBase {
   private static final double TRACK_WIDTH_X = Units.inchesToMeters(25.0);
   private static final double TRACK_WIDTH_Y = Units.inchesToMeters(25.0);
   private static final double SKEW_CONSTANT = 0.06;
+  private static final double APRILTAG_COEFFICIENT = 0.01;
   private static final double DRIVE_BASE_RADIUS =
       Math.hypot(TRACK_WIDTH_X / 2.0, TRACK_WIDTH_Y / 2.0);
   private static final double MAX_ANGULAR_SPEED = MAX_LINEAR_SPEED / DRIVE_BASE_RADIUS;
@@ -98,6 +110,7 @@ public class Drive extends StateMachineSubsystemBase {
   private final GyroIOInputsAutoLogged gyroInputs = new GyroIOInputsAutoLogged();
   private final Module[] modules = new Module[4]; // FL, FR, BL, BR
 
+  private AprilTagFieldLayout aprilTagFieldLayout;
   private SwerveDriveKinematics kinematics = new SwerveDriveKinematics(getModuleTranslations());
   private SwerveDrivePoseEstimator poseEstimator;
   private Pose2d estimatedPoseNoGyro = new Pose2d();
@@ -140,8 +153,21 @@ public class Drive extends StateMachineSubsystemBase {
           Logger.recordOutput("Drive/Odometry/TrajectorySetpoint", targetPose);
         });
 
+    try {
+      aprilTagFieldLayout =
+          AprilTagFieldLayout.loadFromResource(AprilTagFields.k2023ChargedUp.m_resourceFile);
+    } catch (IOException e) {
+      e.printStackTrace();
+    }
+
     poseEstimator =
-        new SwerveDrivePoseEstimator(kinematics, getRotation(), getModulePositions(), new Pose2d());
+        new SwerveDrivePoseEstimator(
+            kinematics,
+            getRotation(),
+            getModulePositions(),
+            new Pose2d(),
+            VecBuilder.fill(0.1, 0.1, 0.1),
+            VecBuilder.fill(0.5, 0.5, 0.5)); // TODO: TUNE STANDARD DEVIATIONS
 
     DISABLED =
         new State("DISABLED") {
@@ -232,11 +258,52 @@ public class Drive extends StateMachineSubsystemBase {
     estimatedPoseNoGyro = estimatedPoseNoGyro.exp(twist);
     poseEstimator.updateWithTime(Timer.getFPGATimestamp(), getRotation(), getModulePositions());
 
-    // TODO: add limelight stuff
-    // if(limelight.connected) {
-    //  Pose2d limelightEstimatedPose = limelight.getBotPoseFieldSpace();
-    //  poseEstimator.addVisionMeasurement(limelightEstimatedPose);
-    // }
+
+    // TODO: not tested on real bot
+
+    NetworkTable limelight = NetworkTableInstance.getDefault().getTable("limelight");
+    // check to see if the limelight is connected & has a target
+    if (limelight.getEntry("tid").getDouble(-1) != -1) {
+      double botpose[] = limelight.getEntry("botpose").getDoubleArray(new double[7]);
+      double tid = limelight.getEntry("botpose").getDouble(-1);
+
+      // estimated 3d pose in field space based on apriltag
+      Pose3d pose3d =
+          new Pose3d(
+              botpose[0],
+              botpose[1],
+              botpose[2],
+              new Rotation3d(
+                  Math.toRadians(botpose[3]),
+                  Math.toRadians(botpose[4]),
+                  Math.toRadians(botpose[5])));
+
+      // get pose of apriltag
+      Pose2d tagPose2d = aprilTagFieldLayout.getTagPose((int) tid).get().toPose2d();
+
+      // make it 2d
+      Pose2d pose = pose3d.toPose2d();
+
+      // TODO: tune vision std devs
+      // gyro rotation usually will not be inaccurate enough to have an effect on odometry, so it
+      // gets a high number
+      // x and y will scale based on the distance from the tag * a coefficient that needs to be
+      // tuned
+      Matrix<N3, N1> stdDevs =
+          VecBuilder.fill(
+              pose.relativeTo(tagPose2d).getTranslation().getNorm() * APRILTAG_COEFFICIENT,
+              pose.relativeTo(tagPose2d).getTranslation().getNorm() * APRILTAG_COEFFICIENT,
+              5.0);
+
+      // get latency in seconds
+      double latency = botpose[6] / 1000;
+
+      // timestamp of limelight data including latency
+      double timestamp = Timer.getFPGATimestamp() - latency;
+
+      // adds vision measurement to our odometry
+      poseEstimator.addVisionMeasurement(pose, timestamp, stdDevs);
+    }
 
     Logger.recordOutput("Drive/Odometry/Robot", getPose());
     chassisSpeeds = kinematics.toChassisSpeeds(getModuleStates());
