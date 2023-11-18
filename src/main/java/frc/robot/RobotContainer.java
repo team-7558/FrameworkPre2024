@@ -17,6 +17,8 @@ import com.pathplanner.lib.auto.AutoBuilder;
 import edu.wpi.first.wpilibj.GenericHID;
 import edu.wpi.first.wpilibj.XboxController;
 import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.button.Trigger;
+import frc.robot.commands.CancelPath;
 import frc.robot.commands.RobotTeleop;
 import frc.robot.subsystems.drive.Drive;
 import frc.robot.subsystems.shooter.Shooter;
@@ -60,6 +62,9 @@ public class RobotContainer {
    */
   private void configureButtonBindings() {
     drive.setDefaultCommand(new RobotTeleop());
+
+    // hacky way to cancel pathplanner
+    new Trigger(() -> OI.DR.getLeftBumper()).whileTrue(new CancelPath(Drive.getInstance()));
   }
 
   /**

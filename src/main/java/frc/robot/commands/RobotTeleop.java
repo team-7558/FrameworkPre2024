@@ -5,6 +5,7 @@
 package frc.robot.commands;
 
 import edu.wpi.first.wpilibj2.command.Command;
+import frc.robot.OI;
 import frc.robot.subsystems.drive.Drive;
 import frc.robot.subsystems.shooter.Shooter;
 
@@ -32,7 +33,23 @@ public class RobotTeleop extends Command {
   // Called every time the scheduler runs while the command is scheduled.
   @Override
   public void execute() {
-    if (!drive.isState(drive.DISABLED)) {}
+    if (!drive.isState(drive.DISABLED)) {
+      // slow mode
+      if (OI.DR.getRightTriggerAxis() > 0) {
+        drive.setCurrentState(drive.SLOW);
+      } else
+      // x stance while shooting
+      if (OI.DR.getLeftTriggerAxis() > 0) {
+        drive.setCurrentState(drive.SHOOTING);
+      } else
+      // run current path
+      if (OI.DR.getRightBumper()) {
+        drive.setCurrentState(drive.PATHING);
+      } else {
+        // strafe and turn if not other state
+        drive.setCurrentState(drive.STRAFE_N_TURN);
+      }
+    }
 
     if (!shooter.isState(shooter.DISABLED)) {
       // Shooter state logic here

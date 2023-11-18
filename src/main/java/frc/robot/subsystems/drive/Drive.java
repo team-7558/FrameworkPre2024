@@ -14,6 +14,7 @@
 package frc.robot.subsystems.drive;
 
 import com.pathplanner.lib.auto.AutoBuilder;
+import com.pathplanner.lib.path.PathPlannerPath;
 import com.pathplanner.lib.pathfinding.Pathfinding;
 import com.pathplanner.lib.util.HolonomicPathFollowerConfig;
 import com.pathplanner.lib.util.PathPlannerLogging;
@@ -44,6 +45,7 @@ import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.Field2d;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import frc.robot.Constants;
 import frc.robot.OI;
 import frc.robot.subsystems.StateMachineSubsystemBase;
@@ -54,6 +56,7 @@ import org.littletonrobotics.junction.Logger;
 public class Drive extends StateMachineSubsystemBase {
   private static final double MAX_LINEAR_SPEED = Units.feetToMeters(14.5);
   private static final double TRACK_WIDTH_X = Units.inchesToMeters(25.0);
+  private static final double SLOW_MODE_THROTTLE = 0.5;
   private static final double TRACK_WIDTH_Y = Units.inchesToMeters(25.0);
   private static final double SKEW_CONSTANT = 0.06;
   private static final double APRILTAG_COEFFICIENT = 0.01;
@@ -104,7 +107,7 @@ public class Drive extends StateMachineSubsystemBase {
     return instance;
   }
 
-  public final State DISABLED, X, STRAFE_N_TURN;
+  public final State DISABLED, SHOOTING, STRAFE_N_TURN, SLOW, PATHING;
 
   private final GyroIO gyroIO;
   private final GyroIOInputsAutoLogged gyroInputs = new GyroIOInputsAutoLogged();
@@ -184,8 +187,8 @@ public class Drive extends StateMachineSubsystemBase {
           public void exit() {}
         };
 
-    X =
-        new State("X") {
+    SHOOTING =
+        new State("SHOOTING") {
           @Override
           public void periodic() {
             stopWithX();
@@ -197,6 +200,23 @@ public class Drive extends StateMachineSubsystemBase {
           @Override
           public void periodic() {
             drive(-OI.DR.getLeftY(), -OI.DR.getLeftX(), -OI.DR.getRightX(), 1.0);
+          }
+        };
+    SLOW =
+        new State("SLOW") {
+          @Override
+          public void periodic() {
+            drive(-OI.DR.getLeftY(), -OI.DR.getLeftX(), -OI.DR.getRightX(), SLOW_MODE_THROTTLE);
+          }
+        };
+    PATHING =
+        new State("PATHING") {
+          @Override
+          public void init() {
+            // go to current target path
+            CommandScheduler.getInstance()
+                .schedule(
+                    AutoBuilder.followPathWithEvents(PathPlannerPath.fromPathFile("Example Path")));
           }
         };
 
@@ -257,7 +277,6 @@ public class Drive extends StateMachineSubsystemBase {
 
     estimatedPoseNoGyro = estimatedPoseNoGyro.exp(twist);
     poseEstimator.updateWithTime(Timer.getFPGATimestamp(), getRotation(), getModulePositions());
-
 
     // TODO: not tested on real bot
 
@@ -456,6 +475,20 @@ public class Drive extends StateMachineSubsystemBase {
       modules[2].getPosition(),
       modules[3].getPosition()
     };
+  }
+
+  /** Returns robot relative chassis speeds * */
+  public ChassisSpeeds getChassisSpeeds() {
+    return chassisSpeeds;
+  }
+
+  /** Returns field relative chassis speeds * */
+  public ChassisSpeeds getFieldRelativeSpeeds() {
+    return ChassisSpeeds.fromRobotRelativeSpeeds(
+        chassisSpeeds.vxMetersPerSecond,
+        chassisSpeeds.vyMetersPerSecond,
+        chassisSpeeds.omegaRadiansPerSecond,
+        getRotation());
   }
 
   /** Returns an array of module translations. */
