@@ -4,9 +4,7 @@
 
 package frc.robot.commands;
 
-import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.wpilibj2.command.Command;
-import frc.robot.OI;
 import frc.robot.subsystems.drive.Drive;
 import frc.robot.subsystems.shooter.Shooter;
 
@@ -34,20 +32,7 @@ public class RobotTeleop extends Command {
   // Called every time the scheduler runs while the command is scheduled.
   @Override
   public void execute() {
-    if (!drive.isState(drive.DISABLED)) {
-      // Drive state logic here
-      if (OI.DR.getBButton()) drive.setPose(new Pose2d());
-
-      if (OI.DR.getXButton()) drive.setCurrentState(drive.X);
-      else if (OI.DR.getAButton()) {
-        drive.setAutolockHeading(0.5 * Math.PI);
-        drive.setCurrentState(drive.STRAFE_AUTOLOCK);
-
-      } else if (OI.DR.getYButton()) {
-        drive.setAutolockHeading(Math.PI);
-        drive.setCurrentState(drive.STRAFE_AUTOLOCK);
-      } else drive.setCurrentState(drive.STRAFE_N_TURN);
-    }
+    if (!drive.isState(drive.DISABLED)) {}
 
     if (!shooter.isState(shooter.DISABLED)) {
       // Shooter state logic here
