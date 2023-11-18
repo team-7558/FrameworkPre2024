@@ -278,7 +278,7 @@ public class Drive extends StateMachineSubsystemBase {
                   Math.toRadians(botpose[4]),
                   Math.toRadians(botpose[5])));
 
-      // get pose of apriltag
+      // get predetermined pose of apriltag
       Pose2d tagPose2d = aprilTagFieldLayout.getTagPose((int) tid).get().toPose2d();
 
       // make it 2d
