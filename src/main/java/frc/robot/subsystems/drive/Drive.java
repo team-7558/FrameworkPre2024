@@ -49,12 +49,14 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import frc.robot.Constants;
 import frc.robot.OI;
+import frc.robot.Constants.Paths;
 import frc.robot.subsystems.StateMachineSubsystemBase;
 import frc.robot.util.LocalADStarAK;
 import java.io.IOException;
 import org.littletonrobotics.junction.Logger;
 
 public class Drive extends StateMachineSubsystemBase {
+  public static transient PathPlannerPath currentPath = Paths.DriveToKey;
   private static final double MAX_LINEAR_SPEED = Units.feetToMeters(14.5);
   private static final double TRACK_WIDTH_X = Units.inchesToMeters(25.0);
   private static final double SLOW_MODE_THROTTLE = 0.5;
@@ -218,7 +220,7 @@ public class Drive extends StateMachineSubsystemBase {
             CommandScheduler.getInstance()
                 .schedule(
                     AutoBuilder.pathfindThenFollowPath(
-                        PathPlannerPath.fromPathFile("DriveToKey"),
+                        currentPath,
                         new PathConstraints(3, 3, MAX_ANGULAR_SPEED, MAX_ANGULAR_SPEED * 1.5)));
           }
         };
