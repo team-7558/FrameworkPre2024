@@ -14,6 +14,7 @@
 package frc.robot.subsystems.drive;
 
 import com.pathplanner.lib.auto.AutoBuilder;
+import com.pathplanner.lib.path.PathConstraints;
 import com.pathplanner.lib.path.PathPlannerPath;
 import com.pathplanner.lib.pathfinding.Pathfinding;
 import com.pathplanner.lib.util.HolonomicPathFollowerConfig;
@@ -216,7 +217,9 @@ public class Drive extends StateMachineSubsystemBase {
             // go to current target path
             CommandScheduler.getInstance()
                 .schedule(
-                    AutoBuilder.followPathWithEvents(PathPlannerPath.fromPathFile("Example Path")));
+                    AutoBuilder.pathfindThenFollowPath(
+                        PathPlannerPath.fromPathFile("DriveToKey"),
+                        new PathConstraints(3, 3, MAX_ANGULAR_SPEED, MAX_ANGULAR_SPEED * 1.5)));
           }
         };
 
