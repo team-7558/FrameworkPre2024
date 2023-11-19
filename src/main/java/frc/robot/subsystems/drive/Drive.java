@@ -323,8 +323,10 @@ public class Drive extends StateMachineSubsystemBase {
       // timestamp of limelight data including latency
       double timestamp = Timer.getFPGATimestamp() - latency;
 
-      // adds vision measurement to our odometry
-      poseEstimator.addVisionMeasurement(pose, timestamp, stdDevs);
+      // adds vision measurement to our odometry only if it's within a meter of the current pose (as reccomended)
+      if(pose.relativeTo(getPose()).getTranslation().getNorm() < 1) {
+        poseEstimator.addVisionMeasurement(pose, timestamp, stdDevs);
+      }
     }
 
     Logger.recordOutput("Drive/Odometry/Robot", getPose());
