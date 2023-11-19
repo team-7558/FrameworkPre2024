@@ -170,7 +170,7 @@ public class Drive extends StateMachineSubsystemBase {
             getRotation(),
             getModulePositions(),
             new Pose2d(),
-            VecBuilder.fill(0.1, 0.1, 0.1),
+            VecBuilder.fill(0.1, 0.1, 0.05),
             VecBuilder.fill(0.5, 0.5, 0.5)); // TODO: TUNE STANDARD DEVIATIONS
 
     DISABLED =
@@ -308,7 +308,7 @@ public class Drive extends StateMachineSubsystemBase {
 
       // TODO: tune vision std devs
       // gyro rotation usually will not be inaccurate enough to have an effect on odometry, so it
-      // gets a high number
+      // gets a high number also cause vision rotation is not very accurate
       // x and y will scale based on the distance from the tag * a coefficient that needs to be
       // tuned
       Matrix<N3, N1> stdDevs =
