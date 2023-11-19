@@ -4,9 +4,11 @@
 
 package frc.robot.commands;
 
-import edu.wpi.first.math.geometry.Pose2d;
+import com.pathplanner.lib.path.PathPlannerPath;
+
 import edu.wpi.first.wpilibj2.command.Command;
 import frc.robot.OI;
+import frc.robot.Constants.Paths;
 import frc.robot.subsystems.drive.Drive;
 import frc.robot.subsystems.shooter.Shooter;
 
@@ -34,19 +36,32 @@ public class RobotTeleop extends Command {
   // Called every time the scheduler runs while the command is scheduled.
   @Override
   public void execute() {
+
+
+
     if (!drive.isState(drive.DISABLED)) {
-      // Drive state logic here
-      if (OI.DR.getBButton()) drive.setPose(new Pose2d());
+      // slow mode
+      if (OI.DR.getRightTriggerAxis() > 0) {
+        drive.setCurrentState(drive.SLOW);
+      } else
+      // x stance while shooting
+      if (OI.DR.getLeftTriggerAxis() > 0) {
+        drive.setCurrentState(drive.SHOOTING);
+      } else
+      // run current path
+      if (OI.DR.getRightBumper()) {
+        drive.setCurrentState(drive.PATHING);
+      } else {
+        // strafe and turn if not other state
+        drive.setCurrentState(drive.STRAFE_N_TURN);
+      }
 
-      if (OI.DR.getXButton()) drive.setCurrentState(drive.X);
-      else if (OI.DR.getAButton()) {
-        drive.setAutolockHeading(0.5 * Math.PI);
-        drive.setCurrentState(drive.STRAFE_AUTOLOCK);
 
-      } else if (OI.DR.getYButton()) {
-        drive.setAutolockHeading(Math.PI);
-        drive.setCurrentState(drive.STRAFE_AUTOLOCK);
-      } else drive.setCurrentState(drive.STRAFE_N_TURN);
+      // other buttons to change path
+      if(OI.DR.getPOV() == 45) {
+        Drive.currentPath = Paths.DriveToKey;
+      }
+
     }
 
     if (!shooter.isState(shooter.DISABLED)) {

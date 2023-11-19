@@ -14,13 +14,22 @@
 package frc.robot.subsystems.drive;
 
 import com.pathplanner.lib.auto.AutoBuilder;
+import com.pathplanner.lib.path.PathConstraints;
+import com.pathplanner.lib.path.PathPlannerPath;
 import com.pathplanner.lib.pathfinding.Pathfinding;
 import com.pathplanner.lib.util.HolonomicPathFollowerConfig;
 import com.pathplanner.lib.util.PathPlannerLogging;
 import com.pathplanner.lib.util.ReplanningConfig;
+import edu.wpi.first.apriltag.AprilTagFieldLayout;
+import edu.wpi.first.apriltag.AprilTagFields;
 import edu.wpi.first.math.MathUtil;
+import edu.wpi.first.math.Matrix;
+import edu.wpi.first.math.VecBuilder;
+import edu.wpi.first.math.estimator.SwerveDrivePoseEstimator;
 import edu.wpi.first.math.geometry.Pose2d;
+import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.geometry.Rotation3d;
 import edu.wpi.first.math.geometry.Transform2d;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.geometry.Twist2d;
@@ -28,21 +37,32 @@ import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.kinematics.SwerveDriveKinematics;
 import edu.wpi.first.math.kinematics.SwerveModulePosition;
 import edu.wpi.first.math.kinematics.SwerveModuleState;
+import edu.wpi.first.math.numbers.N1;
+import edu.wpi.first.math.numbers.N3;
 import edu.wpi.first.math.util.Units;
+import edu.wpi.first.networktables.NetworkTable;
+import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.wpilibj.DriverStation;
+import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.Field2d;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import frc.robot.Constants;
 import frc.robot.OI;
+import frc.robot.Constants.Paths;
 import frc.robot.subsystems.StateMachineSubsystemBase;
 import frc.robot.util.LocalADStarAK;
-import frc.robot.util.Util;
+import java.io.IOException;
 import org.littletonrobotics.junction.Logger;
 
 public class Drive extends StateMachineSubsystemBase {
+  public static transient PathPlannerPath currentPath = Paths.DriveToKey;
   private static final double MAX_LINEAR_SPEED = Units.feetToMeters(14.5);
   private static final double TRACK_WIDTH_X = Units.inchesToMeters(25.0);
+  private static final double SLOW_MODE_THROTTLE = 0.5;
   private static final double TRACK_WIDTH_Y = Units.inchesToMeters(25.0);
+  private static final double SKEW_CONSTANT = 0.06;
+  private static final double APRILTAG_COEFFICIENT = 0.01;
   private static final double DRIVE_BASE_RADIUS =
       Math.hypot(TRACK_WIDTH_X / 2.0, TRACK_WIDTH_Y / 2.0);
   private static final double MAX_ANGULAR_SPEED = MAX_LINEAR_SPEED / DRIVE_BASE_RADIUS;
@@ -90,16 +110,18 @@ public class Drive extends StateMachineSubsystemBase {
     return instance;
   }
 
-  public final State DISABLED, X, STRAFE_N_TURN, STRAFE_AUTOLOCK;
+  public final State DISABLED, SHOOTING, STRAFE_N_TURN, SLOW, PATHING;
 
   private final GyroIO gyroIO;
   private final GyroIOInputsAutoLogged gyroInputs = new GyroIOInputsAutoLogged();
   private final Module[] modules = new Module[4]; // FL, FR, BL, BR
 
+  private AprilTagFieldLayout aprilTagFieldLayout;
   private SwerveDriveKinematics kinematics = new SwerveDriveKinematics(getModuleTranslations());
-  private Pose2d pose = new Pose2d();
+  private SwerveDrivePoseEstimator poseEstimator;
+  private Pose2d estimatedPoseNoGyro = new Pose2d();
   private Rotation2d lastGyroRotation = new Rotation2d();
-  private double autolockSetpoint_rad = 0.0;
+  private ChassisSpeeds chassisSpeeds = new ChassisSpeeds(0, 0, 0);
 
   private Field2d field = new Field2d();
 
@@ -137,6 +159,22 @@ public class Drive extends StateMachineSubsystemBase {
           Logger.recordOutput("Drive/Odometry/TrajectorySetpoint", targetPose);
         });
 
+    try {
+      aprilTagFieldLayout =
+          AprilTagFieldLayout.loadFromResource(AprilTagFields.k2023ChargedUp.m_resourceFile);
+    } catch (IOException e) {
+      e.printStackTrace();
+    }
+
+    poseEstimator =
+        new SwerveDrivePoseEstimator(
+            kinematics,
+            getRotation(),
+            getModulePositions(),
+            new Pose2d(),
+            VecBuilder.fill(0.1, 0.1, 0.05),
+            VecBuilder.fill(0.5, 0.5, 0.5)); // TODO: TUNE STANDARD DEVIATIONS
+
     DISABLED =
         new State("DISABLED") {
 
@@ -152,8 +190,8 @@ public class Drive extends StateMachineSubsystemBase {
           public void exit() {}
         };
 
-    X =
-        new State("X") {
+    SHOOTING =
+        new State("SHOOTING") {
           @Override
           public void periodic() {
             stopWithX();
@@ -167,18 +205,23 @@ public class Drive extends StateMachineSubsystemBase {
             drive(-OI.DR.getLeftY(), -OI.DR.getLeftX(), -OI.DR.getRightX(), 1.0);
           }
         };
-
-    STRAFE_AUTOLOCK =
-        new State("STRAFE AUTOLOCK") {
+    SLOW =
+        new State("SLOW") {
           @Override
           public void periodic() {
-            double err =
-                Math.IEEEremainder(
-                    pose.getRotation().getRadians() - autolockSetpoint_rad, Math.PI * 2.0);
-            Logger.recordOutput("Drive/Autolock Heading Error", err);
-            double con = Util.inRange(err, 0.35) ? 2 * err : 0.8 * err;
-            Logger.recordOutput("Drive/Autolock Heading Output", con);
-            drive(-OI.DR.getLeftY(), -OI.DR.getLeftX(), -con, 1.0);
+            drive(-OI.DR.getLeftY(), -OI.DR.getLeftX(), -OI.DR.getRightX(), SLOW_MODE_THROTTLE);
+          }
+        };
+    PATHING =
+        new State("PATHING") {
+          @Override
+          public void init() {
+            // go to current target path
+            CommandScheduler.getInstance()
+                .schedule(
+                    AutoBuilder.pathfindThenFollowPath(
+                        currentPath,
+                        new PathConstraints(3, 3, MAX_ANGULAR_SPEED, MAX_ANGULAR_SPEED * 1.5)));
           }
         };
 
@@ -236,9 +279,61 @@ public class Drive extends StateMachineSubsystemBase {
       lastGyroRotation = gyroInputs.yawPosition;
     }
     // Apply the twist (change since last loop cycle) to the current pose
-    pose = pose.exp(twist);
+
+    estimatedPoseNoGyro = estimatedPoseNoGyro.exp(twist);
+    poseEstimator.updateWithTime(Timer.getFPGATimestamp(), getRotation(), getModulePositions());
+
+    // TODO: not tested on real bot
+
+    NetworkTable limelight = NetworkTableInstance.getDefault().getTable("limelight");
+    // check to see if the limelight is connected & has a target
+    if (limelight.getEntry("tid").getDouble(-1) != -1) {
+      double botpose[] = limelight.getEntry("botpose").getDoubleArray(new double[7]);
+      double tid = limelight.getEntry("botpose").getDouble(-1);
+
+      // estimated 3d pose in field space based on apriltag
+      Pose3d pose3d =
+          new Pose3d(
+              botpose[0],
+              botpose[1],
+              botpose[2],
+              new Rotation3d(
+                  Math.toRadians(botpose[3]),
+                  Math.toRadians(botpose[4]),
+                  Math.toRadians(botpose[5])));
+
+      // get predetermined pose of apriltag
+      Pose2d tagPose2d = aprilTagFieldLayout.getTagPose((int) tid).get().toPose2d();
+
+      // make it 2d
+      Pose2d pose = pose3d.toPose2d();
+
+      // TODO: tune vision std devs
+      // gyro rotation usually will not be inaccurate enough to have an effect on odometry, so it
+      // gets a high number also cause vision rotation is not very accurate
+      // x and y will scale based on the distance from the tag * a coefficient that needs to be
+      // tuned
+      Matrix<N3, N1> stdDevs =
+          VecBuilder.fill(
+              pose.relativeTo(tagPose2d).getTranslation().getNorm() * APRILTAG_COEFFICIENT,
+              pose.relativeTo(tagPose2d).getTranslation().getNorm() * APRILTAG_COEFFICIENT,
+              5.0);
+
+      // get latency in seconds
+      double latency = botpose[6] / 1000;
+
+      // timestamp of limelight data including latency
+      double timestamp = Timer.getFPGATimestamp() - latency;
+
+      // adds vision measurement to our odometry only if it's within a meter of the current pose (as reccomended)
+      if(pose.relativeTo(getPose()).getTranslation().getNorm() < 1) {
+        poseEstimator.addVisionMeasurement(pose, timestamp, stdDevs);
+      }
+    }
+
     Logger.recordOutput("Drive/Odometry/Robot", getPose());
-    field.setRobotPose(pose);
+    chassisSpeeds = kinematics.toChassisSpeeds(getModuleStates());
+    field.setRobotPose(getPose());
     SmartDashboard.putData(field);
   }
 
@@ -265,7 +360,11 @@ public class Drive extends StateMachineSubsystemBase {
             linearVelocity.getX() * MAX_LINEAR_SPEED,
             linearVelocity.getY() * MAX_LINEAR_SPEED,
             omega * MAX_ANGULAR_SPEED,
-            pose.getRotation()));
+            getPose()
+                .getRotation()
+                .plus(
+                    new Rotation2d(
+                        getAngularVelocity() * SKEW_CONSTANT)))); // TODO: tune skew constant
   }
 
   /**
@@ -316,6 +415,19 @@ public class Drive extends StateMachineSubsystemBase {
     }
   }
 
+  /**
+   * Returns the angular velocity of the robot
+   *
+   * @return radians/s
+   */
+  public double getAngularVelocity() {
+    if (gyroInputs.connected) {
+      return gyroInputs.yawVelocityRadPerSec;
+    } else {
+      return chassisSpeeds.omegaRadiansPerSecond;
+    }
+  }
+
   /** Returns the average drive velocity in radians/sec. */
   public double getCharacterizationVelocity() {
     double driveVelocityAverage = 0.0;
@@ -336,21 +448,21 @@ public class Drive extends StateMachineSubsystemBase {
 
   /** Returns the current odometry pose. */
   public Pose2d getPose() {
-    return pose;
+    return poseEstimator.getEstimatedPosition();
   }
 
   /** Returns the current odometry rotation. */
   public Rotation2d getRotation() {
-    return pose.getRotation();
+    if (gyroInputs.connected) {
+      return gyroInputs.yawPosition;
+    } else {
+      return estimatedPoseNoGyro.getRotation();
+    }
   }
 
   /** Resets the current odometry pose. */
   public void setPose(Pose2d pose) {
-    this.pose = pose;
-  }
-
-  public void setAutolockHeading(double heading) {
-    autolockSetpoint_rad = heading;
+    poseEstimator.resetPosition(lastGyroRotation, getModulePositions(), pose);
   }
 
   /** Returns the maximum linear speed in meters per sec. */
@@ -361,6 +473,29 @@ public class Drive extends StateMachineSubsystemBase {
   /** Returns the maximum angular speed in radians per sec. */
   public double getMaxAngularSpeedRadPerSec() {
     return MAX_ANGULAR_SPEED;
+  }
+
+  public SwerveModulePosition[] getModulePositions() {
+    return new SwerveModulePosition[] {
+      modules[0].getPosition(),
+      modules[1].getPosition(),
+      modules[2].getPosition(),
+      modules[3].getPosition()
+    };
+  }
+
+  /** Returns robot relative chassis speeds * */
+  public ChassisSpeeds getChassisSpeeds() {
+    return chassisSpeeds;
+  }
+
+  /** Returns field relative chassis speeds * */
+  public ChassisSpeeds getFieldRelativeSpeeds() {
+    return ChassisSpeeds.fromRobotRelativeSpeeds(
+        chassisSpeeds.vxMetersPerSecond,
+        chassisSpeeds.vyMetersPerSecond,
+        chassisSpeeds.omegaRadiansPerSecond,
+        getRotation());
   }
 
   /** Returns an array of module translations. */

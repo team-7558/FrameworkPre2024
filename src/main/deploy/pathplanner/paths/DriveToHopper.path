@@ -1,0 +1,45 @@
+{
+  "version": 1.0,
+  "waypoints": [
+    {
+      "anchor": {
+        "x": 3.4462162162162167,
+        "y": 1.2420608108108104
+      },
+      "prevControl": null,
+      "nextControl": {
+        "x": 4.446216216216204,
+        "y": 0.7420608108108104
+      },
+      "isLocked": false
+    },
+    {
+      "anchor": {
+        "x": 5.468175675675676,
+        "y": 0.7413851351351343
+      },
+      "prevControl": {
+        "x": 5.218175675675676,
+        "y": 2.241385135135134
+      },
+      "nextControl": null,
+      "isLocked": false
+    }
+  ],
+  "rotationTargets": [],
+  "constraintZones": [],
+  "eventMarkers": [],
+  "globalConstraints": {
+    "maxVelocity": 3.0,
+    "maxAcceleration": 3.0,
+    "maxAngularVelocity": 540.0,
+    "maxAngularAcceleration": 720.0
+  },
+  "goalEndState": {
+    "velocity": 0,
+    "rotation": -90.0
+  },
+  "reversed": false,
+  "folder": "Hopperside",
+  "previewStartingState": null
+}
