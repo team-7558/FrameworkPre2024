@@ -13,6 +13,8 @@
 
 package frc.robot;
 
+import com.pathplanner.lib.path.PathPlannerPath;
+
 /**
  * The Constants class provides a convenient place for teams to hold robot-wide numerical or boolean
  * constants. This class should not be used for any other purpose. All constants should be declared
@@ -37,4 +39,9 @@ public final class Constants {
 
   public static final double globalDelta_sec = 0.02;
   public static final double driveDeadband = 0.05;
+
+  // do this so no need to load from file everytime its called
+  public static final class Paths {
+    public static final PathPlannerPath DriveToKey = PathPlannerPath.fromPathFile("DriveToKey");
+  }
 }
