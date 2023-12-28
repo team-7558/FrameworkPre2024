@@ -23,7 +23,12 @@ import frc.robot.Constants;
 import org.littletonrobotics.junction.Logger;
 
 public class Module {
-  private static final double WHEEL_RADIUS = Units.inchesToMeters(2.0);
+  public static final double WHEEL_RADIUS = Units.inchesToMeters(2.0);
+
+  public enum Mode {
+    VOLTAGE,
+    SETPOINT,
+  }
 
   private final ModuleIO io;
   private final ModuleIOInputsAutoLogged inputs = new ModuleIOInputsAutoLogged();
@@ -32,14 +37,16 @@ public class Module {
   private final SimpleMotorFeedforward driveFeedforward;
   private final PIDController driveFeedback;
   private final PIDController turnFeedback;
+  public Mode mode = Mode.VOLTAGE;
   private Rotation2d angleSetpoint = null; // Setpoint for closed loop control, null for open loop
   private Double speedSetpoint = null; // Setpoint for closed loop control, null for open loop
   private Rotation2d turnRelativeOffset = null; // Relative + Offset = Absolute
   private double lastPositionMeters = 0.0; // Used for delta calculation
 
-  public Module(ModuleIO io, int index) {
+  public Module(ModuleIO io, int index, Mode mode) {
     this.io = io;
     this.index = index;
+    this.mode = mode;
 
     // Switch constants based on mode (the physics simulator is treated as a
     // separate robot with different tuning)
@@ -78,26 +85,49 @@ public class Module {
       turnRelativeOffset = inputs.turnAbsolutePosition.minus(inputs.turnPosition);
     }
 
-    // Run closed loop turn control
-    if (angleSetpoint != null) {
-      io.setTurnVoltage(
-          turnFeedback.calculate(getAngle().getRadians(), angleSetpoint.getRadians()));
+    if (mode == Mode.VOLTAGE) {
+      // Run closed loop turn control
+      if (angleSetpoint != null) {
+        io.setTurnVoltage(
+            turnFeedback.calculate(getAngle().getRadians(), angleSetpoint.getRadians()));
 
-      // Run closed loop drive control
-      // Only allowed if closed loop turn control is running
-      if (speedSetpoint != null) {
-        // Scale velocity based on turn error
-        //
-        // When the error is 90°, the velocity setpoint should be 0. As the wheel turns
-        // towards the setpoint, its velocity should increase. This is achieved by
-        // taking the component of the velocity in the direction of the setpoint.
-        double adjustSpeedSetpoint = speedSetpoint * Math.cos(turnFeedback.getPositionError());
+        // Run closed loop drive control
+        // Only allowed if closed loop turn control is running
+        if (speedSetpoint != null) {
+          // Scale velocity based on turn error
+          //
+          // When the error is 90°, the velocity setpoint should be 0. As the wheel turns
+          // towards the setpoint, its velocity should increase. This is achieved by
+          // taking the component of the velocity in the direction of the setpoint.
+          double adjustSpeedSetpoint = speedSetpoint * Math.cos(turnFeedback.getPositionError());
 
-        // Run drive controller
-        double velocityRadPerSec = adjustSpeedSetpoint / WHEEL_RADIUS;
-        io.setDriveVoltage(
-            driveFeedforward.calculate(velocityRadPerSec)
-                + driveFeedback.calculate(inputs.driveVelocityRadPerSec, velocityRadPerSec));
+          // Run drive controller
+          double velocityRadPerSec = adjustSpeedSetpoint / WHEEL_RADIUS;
+          io.setDriveVoltage(
+              driveFeedforward.calculate(velocityRadPerSec)
+                  + driveFeedback.calculate(inputs.driveVelocityRadPerSec, velocityRadPerSec));
+        }
+      }
+    } else {
+      // Run closed loop turn control
+      if (angleSetpoint != null) {
+        io.setTurnAngle(angleSetpoint.getRadians());
+        // io.setTurnVoltage(
+        //    turnFeedback.calculate(getAngle().getRadians(), angleSetpoint.getRadians()));
+
+        // Run closed loop drive control
+        // Only allowed if closed loop turn control is running
+        if (speedSetpoint != null) {
+          // Scale velocity based on turn error
+          //
+          // When the error is 90°, the velocity setpoint should be 0. As the wheel turns
+          // towards the setpoint, its velocity should increase. This is achieved by
+          // taking the component of the velocity in the direction of the setpoint.
+          double adjustSpeedSetpoint = speedSetpoint * Math.cos(turnFeedback.getPositionError());
+
+          // Run drive controller
+          io.setDriveVelocity(adjustSpeedSetpoint);
+        }
       }
     }
   }

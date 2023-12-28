@@ -69,14 +69,14 @@ public class Drive extends StateMachineSubsystemBase {
   // STUFF FOR PATHING STATE
 
   public static transient PathPlannerPath currentPath = Paths.DriveToKey;
-  private static final double MAX_LINEAR_SPEED = Units.feetToMeters(14.5);
+  public static final double MAX_LINEAR_SPEED = Units.feetToMeters(14.5);
   private static final double TRACK_WIDTH_X = Units.inchesToMeters(25.0);
   private static final double TRACK_WIDTH_Y = Units.inchesToMeters(25.0);
   private static final double SKEW_CONSTANT = 0.06;
   private static final double APRILTAG_COEFFICIENT = 0.01;
   private static final double DRIVE_BASE_RADIUS =
       Math.hypot(TRACK_WIDTH_X / 2.0, TRACK_WIDTH_Y / 2.0);
-  private static final double MAX_ANGULAR_SPEED = MAX_LINEAR_SPEED / DRIVE_BASE_RADIUS;
+  public static final double MAX_ANGULAR_SPEED = MAX_LINEAR_SPEED / DRIVE_BASE_RADIUS;
 
   private static Drive instance;
 
@@ -100,10 +100,10 @@ public class Drive extends StateMachineSubsystemBase {
           instance =
               new Drive(
                   new GyroIO() {},
-                  new ModuleIOSim(),
-                  new ModuleIOSim(),
-                  new ModuleIOSim(),
-                  new ModuleIOSim());
+                  new ModuleIOSim(0),
+                  new ModuleIOSim(1),
+                  new ModuleIOSim(2),
+                  new ModuleIOSim(3));
           break;
 
         default:
@@ -149,10 +149,10 @@ public class Drive extends StateMachineSubsystemBase {
 
     super("Drive");
     this.gyroIO = gyroIO;
-    modules[0] = new Module(flModuleIO, 0);
-    modules[1] = new Module(frModuleIO, 1);
-    modules[2] = new Module(blModuleIO, 2);
-    modules[3] = new Module(brModuleIO, 3);
+    modules[0] = new Module(flModuleIO, 0, Module.Mode.SETPOINT);
+    modules[1] = new Module(frModuleIO, 1, Module.Mode.SETPOINT);
+    modules[2] = new Module(blModuleIO, 2, Module.Mode.SETPOINT);
+    modules[3] = new Module(brModuleIO, 3, Module.Mode.SETPOINT);
 
     limelight = new LimelightIOReal("limelight");
     // Configure AutoBuilder for PathPlanner
@@ -780,5 +780,12 @@ public class Drive extends StateMachineSubsystemBase {
    */
   public double getAutolockSetpoint() {
     return autolockSetpoint;
+  }
+
+  public void setModuleModes(Module.Mode mode) {
+    modules[0].mode = mode;
+    modules[1].mode = mode;
+    modules[2].mode = mode;
+    modules[3].mode = mode;
   }
 }

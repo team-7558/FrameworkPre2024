@@ -1,0 +1,60 @@
+{
+  "version": 1.0,
+  "startingPose": {
+    "position": {
+      "x": 3.7158108108108108,
+      "y": 6.653209459459459
+    },
+    "rotation": 0
+  },
+  "command": {
+    "type": "sequential",
+    "data": {
+      "commands": [
+        {
+          "type": "path",
+          "data": {
+            "pathName": "DriveToFarHopper"
+          }
+        },
+        {
+          "type": "wait",
+          "data": {
+            "waitTime": 2.0
+          }
+        },
+        {
+          "type": "path",
+          "data": {
+            "pathName": "DriveToScore"
+          }
+        },
+        {
+          "type": "wait",
+          "data": {
+            "waitTime": 1.0
+          }
+        },
+        {
+          "type": "path",
+          "data": {
+            "pathName": "DriveToShoot"
+          }
+        },
+        {
+          "type": "named",
+          "data": {
+            "name": "Run Flywheel"
+          }
+        },
+        {
+          "type": "wait",
+          "data": {
+            "waitTime": 5.0
+          }
+        }
+      ]
+    }
+  },
+  "folder": null
+}

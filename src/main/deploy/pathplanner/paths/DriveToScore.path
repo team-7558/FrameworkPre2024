@@ -1,0 +1,48 @@
+{
+  "version": 1.0,
+  "waypoints": [
+    {
+      "anchor": {
+        "x": 3.2151351351351356,
+        "y": 7.808614864864865
+      },
+      "prevControl": null,
+      "nextControl": {
+        "x": 3.1284797297297295,
+        "y": 6.162162162162162
+      },
+      "isLocked": false
+    },
+    {
+      "anchor": {
+        "x": 3.089966216216216,
+        "y": 5.805912162162162
+      },
+      "prevControl": {
+        "x": 2.9936824324324323,
+        "y": 6.431756756756756
+      },
+      "nextControl": null,
+      "isLocked": false
+    }
+  ],
+  "rotationTargets": [],
+  "constraintZones": [],
+  "eventMarkers": [],
+  "globalConstraints": {
+    "maxVelocity": 3.0,
+    "maxAcceleration": 3.0,
+    "maxAngularVelocity": 540.0,
+    "maxAngularAcceleration": 720.0
+  },
+  "goalEndState": {
+    "velocity": 0,
+    "rotation": -61.18920625702689
+  },
+  "reversed": false,
+  "folder": "Farside",
+  "previewStartingState": {
+    "rotation": 90.0,
+    "velocity": 0
+  }
+}

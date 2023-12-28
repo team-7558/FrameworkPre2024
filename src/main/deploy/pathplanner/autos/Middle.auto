@@ -1,0 +1,36 @@
+{
+  "version": 1.0,
+  "startingPose": {
+    "position": {
+      "x": 0.7310135135135134,
+      "y": 4.39054054054054
+    },
+    "rotation": 0
+  },
+  "command": {
+    "type": "sequential",
+    "data": {
+      "commands": [
+        {
+          "type": "named",
+          "data": {
+            "name": "Run Flywheel"
+          }
+        },
+        {
+          "type": "wait",
+          "data": {
+            "waitTime": 1.5
+          }
+        },
+        {
+          "type": "path",
+          "data": {
+            "pathName": "DriveToGearScore"
+          }
+        }
+      ]
+    }
+  },
+  "folder": null
+}

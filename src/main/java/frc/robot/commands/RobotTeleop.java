@@ -8,6 +8,7 @@ import edu.wpi.first.wpilibj2.command.Command;
 import frc.robot.Constants.Paths;
 import frc.robot.OI;
 import frc.robot.subsystems.drive.Drive;
+import frc.robot.subsystems.drive.Module.Mode;
 import frc.robot.subsystems.shooter.Shooter;
 
 public class RobotTeleop extends Command {
@@ -68,10 +69,11 @@ public class RobotTeleop extends Command {
         Drive.currentPath = Paths.DriveToKey;
       }
 
-      if (OI.XK.hasInput()) {
-        System.out.println("XKEY");
+      if (OI.XK.get(0, 0)) {
+        drive.setModuleModes(Mode.VOLTAGE);
+      } else if (OI.XK.get(0, 1)) {
+        drive.setModuleModes(Mode.SETPOINT);
       }
-
     }
 
     if (!shooter.isState(shooter.DISABLED)) {
