@@ -94,16 +94,18 @@ public class ModuleIOSim implements ModuleIO {
     driveSim.setInputVoltage(driveAppliedVolts);
     Logger.recordOutput(
         "Drive/Modules/" + Integer.toString(index) + "/MeasuredDriveVel", measuredDriveVelocity);
-    Logger.recordOutput("Drive/Modules/" + Integer.toString(index) + "/TargetDriveVel", driveVelocity);
+    Logger.recordOutput(
+        "Drive/Modules/" + Integer.toString(index) + "/TargetDriveVel", driveVelocity);
   }
 
   @Override
   public void setTurnAngle(double rad) {
     turnAngle = rad;
-    double measuredTurnAngle = turnSim.getAngularPositionRad() + turnAbsoluteInitPosition.getRadians();
+    double measuredTurnAngle =
+        turnSim.getAngularPositionRad() + turnAbsoluteInitPosition.getRadians();
     turnAppliedVolts =
         MathUtil.clamp(turnAnglePID.calculate(measuredTurnAngle, turnAngle), -12.0, 12.0);
-    turnSim.setInputVoltage(turnAppliedVolts);    
+    turnSim.setInputVoltage(turnAppliedVolts);
     Logger.recordOutput(
         "Drive/Modules/" + Integer.toString(index) + "/MeasuredTurnAngle", measuredTurnAngle);
     Logger.recordOutput("Drive/Modules/" + Integer.toString(index) + "/TargetTurnAngle", turnAngle);
