@@ -37,21 +37,21 @@ public class ShooterIOSim implements ShooterIO {
 
     sim.update(Constants.globalDelta_sec);
 
-    inputs.positionRad = 0.0;
-    inputs.velocityRadPerSec = sim.getAngularVelocityRadPerSec();
-    inputs.appliedVolts = appliedVolts;
+    inputs.hoodPositionRad = 0.0;
+    inputs.flywheelVelocityRadPerSec = sim.getAngularVelocityRadPerSec();
+    inputs.flywheelAppliedVolts = appliedVolts;
     inputs.currentAmps = new double[] {sim.getCurrentDrawAmps()};
   }
 
   @Override
-  public void setVoltage(double volts) {
+  public void setFlywheelVoltage(double volts) {
     closedLoop = false;
     appliedVolts = 0.0;
     sim.setInputVoltage(volts);
   }
 
   @Override
-  public void setVelocity(double velocityRadPerSec, double ffVolts) {
+  public void setFlywheelVelocity(double velocityRadPerSec, double ffVolts) {
     closedLoop = true;
     pid.setSetpoint(velocityRadPerSec);
     this.ffVolts = ffVolts;
@@ -59,11 +59,11 @@ public class ShooterIOSim implements ShooterIO {
 
   @Override
   public void stop() {
-    setVoltage(0.0);
+    setFlywheelVoltage(0.0);
   }
 
   @Override
-  public void configurePID(double kP, double kI, double kD) {
+  public void flywheelConfigurePID(double kP, double kI, double kD) {
     pid.setPID(kP, kI, kD);
   }
 }

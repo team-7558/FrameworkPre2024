@@ -28,7 +28,7 @@ public class Shooter extends StateMachineSubsystemBase {
       switch (Constants.currentMode) {
         case REAL:
           // Real robot, instantiate hardware IO implementations
-          instance = new Shooter(new ShooterIOSparkMax());
+          instance = new Shooter(new ShooterIOReal());
           break;
 
         case SIM:
@@ -46,11 +46,14 @@ public class Shooter extends StateMachineSubsystemBase {
     return instance;
   }
 
-  public final State DISABLED, IDLE;
+  public final State DISABLED, IDLE, TARGET_LOW, TARGET_HIGH, SHOOT;
 
   private final ShooterIO io;
   private final ShooterIOInputsAutoLogged inputs = new ShooterIOInputsAutoLogged();
   private final SimpleMotorFeedforward ffModel;
+  public ShooterSetpoints activeSetpoint = ShooterSetpoints.DEFAULT;
+  // hoodangle at 1 rad because angle of hood at max height is around 60 degrees, turret is 180
+  // degrees turret so 90 seems like it would be ok
 
   /** Creates a new Flywheel. */
   private Shooter(ShooterIO io) {
@@ -63,11 +66,11 @@ public class Shooter extends StateMachineSubsystemBase {
       case REAL:
       case REPLAY:
         ffModel = new SimpleMotorFeedforward(0.1, 0.05);
-        io.configurePID(1.0, 0.0, 0.0);
+        io.flywheelConfigurePID(1.0, 0.0, 0.0);
         break;
       case SIM:
         ffModel = new SimpleMotorFeedforward(0.0, 0.03);
-        io.configurePID(0.5, 0.0, 0.0);
+        io.flywheelConfigurePID(0.5, 0.0, 0.0);
         break;
       default:
         ffModel = new SimpleMotorFeedforward(0.0, 0.0);
@@ -80,6 +83,8 @@ public class Shooter extends StateMachineSubsystemBase {
           @Override
           public void init() {
             stop();
+            // stop hood
+            // stop target angle spining
           }
 
           @Override
@@ -96,6 +101,49 @@ public class Shooter extends StateMachineSubsystemBase {
           public void init() {
             stop();
           }
+
+          @Override
+          public void periodic() {}
+
+          @Override
+          public void exit() {}
+        };
+
+    TARGET_LOW =
+        new State("TARGET_LOW") {
+
+          @Override
+          public void init() {}
+
+          @Override
+          public void periodic() {}
+
+          @Override
+          public void exit() {}
+        };
+
+    TARGET_HIGH =
+        new State("TARGET_HIGH") {
+
+          @Override
+          public void init() {}
+
+          @Override
+          public void periodic() {
+            target(activeSetpoint);
+            // hood position
+            // target angle
+          }
+
+          @Override
+          public void exit() {}
+        };
+
+    SHOOT =
+        new State("SHOOT") {
+
+          @Override
+          public void init() {}
 
           @Override
           public void periodic() {}
@@ -121,9 +169,9 @@ public class Shooter extends StateMachineSubsystemBase {
   }
 
   /** Run closed loop at the specified velocity. */
-  public void runVelocity(double velocityRPM) {
+  public void runFlywheelAtVelocity(double velocityRPM) {
     var velocityRadPerSec = Units.rotationsPerMinuteToRadiansPerSecond(velocityRPM);
-    io.setVelocity(velocityRadPerSec, ffModel.calculate(velocityRadPerSec));
+    io.setFlywheelVelocity(velocityRadPerSec, ffModel.calculate(velocityRadPerSec));
 
     // Log flywheel setpoint
     Logger.recordOutput("FlywheelSetpointRPM", velocityRPM);
@@ -136,16 +184,22 @@ public class Shooter extends StateMachineSubsystemBase {
 
   /** Returns the current velocity in RPM. */
   public double getVelocityRPM() {
-    return Units.radiansPerSecondToRotationsPerMinute(inputs.velocityRadPerSec);
+    return Units.radiansPerSecondToRotationsPerMinute(inputs.flywheelVelocityRadPerSec);
   }
 
   /** Runs forwards at the commanded voltage. */
   public void runCharacterizationVolts(double volts) {
-    io.setVoltage(volts);
+    io.setFlywheelVoltage(volts);
   }
 
   /** Returns the average drive velocity in radians/sec. */
   public double getCharacterizationVelocity() {
-    return inputs.velocityRadPerSec;
+    return inputs.flywheelVelocityRadPerSec;
+  }
+
+  public void target(ShooterSetpoints s) {
+    runFlywheelAtVelocity(s.rpm);
+    // hood Angle
+    // target Angle
   }
 }
